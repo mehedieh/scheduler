@@ -166,3 +166,53 @@ body {
 
 /* Utility Classes */
 .hidden { display: none !important; }
+
+/* (Keep all your existing CSS and add these new rules at the end) */
+
+/* ... existing styles ... */
+
+/* NEW: Styles for the Developer Info Section */
+.sidebar-footer {
+    /* Pushes the footer to the bottom of the flex container (the sidebar) */
+    margin-top: auto; 
+    padding: 1.25rem;
+    border-top: 1px solid var(--border-color);
+    text-align: center;
+    background-color: var(--bg-primary); /* Slightly different background */
+}
+
+.sidebar-footer .dev-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 4px 0;
+}
+
+.sidebar-footer .dev-details {
+    font-size: 0.9em;
+    color: var(--text-secondary);
+    margin: 0 0 12px 0;
+}
+
+.github-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    padding: 6px 12px;
+    border-radius: 6px;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.github-link:hover {
+    background-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.github-icon {
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    fill: currentColor; /* The SVG will inherit the link's color */
+}
