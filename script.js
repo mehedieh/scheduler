@@ -2,7 +2,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- CONFIG & STATE ---
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
     const timeSlots = ['09:00', '10:00', '11:00', '12:00', '1:00', '2:00', '3:00', '4:00'];
-    let classes = JSON.parse(localStorage.getItem('scheduleClasses')) || [];
+    
+    // CHANGED: Using sessionStorage to clear data when the tab is closed
+    let classes = JSON.parse(sessionStorage.getItem('scheduleClasses')) || [];
     let selectedClassId = null;
 
     // --- DOM ELEMENTS ---
@@ -16,18 +18,16 @@ document.addEventListener('DOMContentLoaded', () => {
         grid.innerHTML = '';
         grid.style.gridTemplateColumns = `0.8fr repeat(${timeSlots.length}, 1.5fr)`;
         
-        // Time Headers
         grid.innerHTML += `<div class="grid-cell header">Time</div>`;
         timeSlots.forEach(time => grid.innerHTML += `<div class="grid-cell header">${time}</div>`);
 
-        // Day Rows and Cells
         days.forEach((day, dayIndex) => {
             grid.innerHTML += `<div class="grid-cell header">${day}</div>`;
             timeSlots.forEach((time, timeIndex) => {
                 grid.innerHTML += `<div class="grid-cell" data-day="${dayIndex}" data-time="${timeIndex}"></div>`;
             });
         });
-        // Call renderClasses AFTER the grid structure is built
+        
         renderClasses();
     }
 
@@ -41,12 +41,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 classItem.classList.add('selected');
             }
             classItem.style.backgroundColor = cls.color;
-            // Ensure duration is at least 1
             const duration = Math.max(1, cls.duration);
             classItem.style.gridColumn = `${cls.time + 2} / span ${duration}`;
             classItem.style.gridRow = `${cls.day + 2}`;
-
-            // CHANGED: Added teacher display
             classItem.innerHTML = `
                 <div class="code">${cls.code}</div>
                 <div class="title">${cls.title}</div>
@@ -80,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 editorForm['class-id'].value = data.id;
                 editorForm['course-code'].value = data.code;
                 editorForm['course-title'].value = data.title;
-                editorForm['teacher-name'].value = data.teacher || ''; // NEW: Populate teacher name
+                editorForm['teacher-name'].value = data.teacher || '';
                 editorForm['day-select'].value = data.day;
                 editorForm['start-time-select'].value = data.time;
                 editorForm['end-time-select'].value = data.time + data.duration - 1;
@@ -90,13 +87,12 @@ document.addEventListener('DOMContentLoaded', () => {
         } else { // 'default'
             defaultMessage.classList.remove('hidden');
             editorForm.classList.add('hidden');
-            selectedClassId = null; // Deselect when going back to default
+            selectedClassId = null;
         }
     }
 
     // --- EVENT HANDLERS ---
     grid.addEventListener('click', (e) => {
-        // Use .closest() to handle clicks on the text inside the class item
         const classTarget = e.target.closest('.class-item');
         const cellTarget = e.target.closest('.grid-cell:not(.header)');
 
@@ -128,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
             id: id || Date.now(),
             code: editorForm['course-code'].value,
             title: editorForm['course-title'].value,
-            teacher: editorForm['teacher-name'].value, // NEW: Save teacher name
+            teacher: editorForm['teacher-name'].value,
             day: parseInt(editorForm['day-select'].value),
             time: startTime,
             duration: (endTime - startTime) + 1,
@@ -142,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         saveAndRender();
-        showEditor('default'); // Go back to default view after saving
+        showEditor('default');
     });
 
     deleteBtn.addEventListener('click', () => {
@@ -169,8 +165,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- HELPER FUNCTIONS ---
     function saveAndRender() {
-        localStorage.setItem('scheduleClasses', JSON.stringify(classes));
-        // BUG FIX: Always render the full grid to ensure empty cells are present
+        // CHANGED: Using sessionStorage to clear data when the tab is closed
+        sessionStorage.setItem('scheduleClasses', JSON.stringify(classes));
         renderGrid();
     }
 
