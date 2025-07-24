@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- CONFIG & STATE ---
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
-    const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
+    const timeSlots = ['09:00', '10:00', '11:00', '12:00', '1:00', '2:00', '2:00', '4:00'];
     let classes = JSON.parse(localStorage.getItem('scheduleClasses')) || [];
     let selectedClassId = null;
 
