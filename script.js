@@ -15,25 +15,37 @@ document.addEventListener('DOMContentLoaded', () => {
     const deleteBtn = document.getElementById('deleteBtn');
 
     // ==================================================================
-    // BUG FIX: REWRITTEN RENDERING LOGIC
+    // BUG FIX: STABLE RENDERING LOGIC
     // ==================================================================
 
     /**
-     *  Builds the static grid skeleton.
-     *  This function runs ONLY ONCE when the page loads.
-     *  It creates the time/day headers and the empty, clickable cells.
+     * Builds the static grid skeleton using the stable `appendChild` method.
+     * This runs ONLY ONCE and will never destroy the page layout.
      */
     function initializeGridSkeleton() {
-        grid.innerHTML = ''; // Clear only once at the very beginning
+        grid.innerHTML = ''; // Clear the grid container once.
         grid.style.gridTemplateColumns = `0.8fr repeat(${timeSlots.length}, 1.5fr)`;
-        
-        // Add headers
-        grid.innerHTML += `<div class="grid-cell header">Time</div>`;
-        timeSlots.forEach(time => grid.innerHTML += `<div class="grid-cell header">${time}</div>`);
 
-        // Add day rows and their cells
+        // Create headers using the safe method
+        const timeHeader = document.createElement('div');
+        timeHeader.className = 'grid-cell header';
+        timeHeader.textContent = 'Time';
+        grid.appendChild(timeHeader);
+
+        timeSlots.forEach(time => {
+            const headerCell = document.createElement('div');
+            headerCell.className = 'grid-cell header';
+            headerCell.textContent = time;
+            grid.appendChild(headerCell);
+        });
+
+        // Create day rows and their cells using the safe method
         days.forEach((day, dayIndex) => {
-            grid.innerHTML += `<div class="grid-cell header">${day}</div>`;
+            const dayHeader = document.createElement('div');
+            dayHeader.className = 'grid-cell header';
+            dayHeader.textContent = day;
+            grid.appendChild(dayHeader);
+
             timeSlots.forEach((time, timeIndex) => {
                 const cell = document.createElement('div');
                 cell.className = 'grid-cell';
@@ -45,46 +57,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     *  Renders all class blocks on top of the existing grid.
-     *  This is the ONLY function that should draw classes. It first removes
-     *  all old class blocks and then redraws the current list from scratch
-     *  without ever harming the grid skeleton.
+     * Renders all class blocks on top of the existing grid.
+     * This function is safe and only modifies the class items themselves.
      */
     function renderAllClasses() {
-        // First, remove ONLY the old class items, not the grid cells
         document.querySelectorAll('.class-item').forEach(item => item.remove());
 
-        // Now, add each class from our data array to the grid
         classes.forEach(cls => {
             const classItem = document.createElement('div');
             classItem.className = 'class-item';
             classItem.dataset.id = cls.id;
             
-            // Highlight the selected class
             if (cls.id === selectedClassId) {
                 classItem.classList.add('selected');
             }
             
             classItem.style.backgroundColor = cls.color;
             
-            // Position the item on the CSS Grid
             const duration = Math.max(1, cls.duration);
             classItem.style.gridColumn = `${cls.time + 2} / span ${duration}`;
             classItem.style.gridRow = `${cls.day + 2}`;
             
-            // Add the content inside the class block
             classItem.innerHTML = `
                 <div class="code">${cls.code}</div>
                 <div class="title">${cls.title}</div>
                 <div class="teacher">${cls.teacher || ''}</div> 
             `;
             
-            // Place the new class item directly onto the grid
             grid.appendChild(classItem);
         });
     }
 
-    // --- EDITOR & FORM LOGIC --- (This section is mostly the same and correct)
+    // --- EDITOR & FORM LOGIC --- (No changes needed here)
     function showEditor(state, data) {
         if (state === 'new' || state === 'edit') {
             defaultMessage.classList.add('hidden');
@@ -132,12 +136,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const classData = classes.find(c => c.id === selectedClassId);
             showEditor('edit', classData);
         } else if (cellTarget) {
-            selectedClassId = null; // Deselect any previously selected class
+            selectedClassId = null;
             const day = cellTarget.dataset.day;
             const time = cellTarget.dataset.time;
             showEditor('new', { day, time: parseInt(time) });
         }
-        // Always re-render to update the 'selected' highlight correctly
         renderAllClasses();
     });
 
@@ -169,29 +172,21 @@ document.addEventListener('DOMContentLoaded', () => {
             classes.push(classData);
         }
         
-        // Save data and redraw the classes on the grid
         sessionStorage.setItem('scheduleClasses', JSON.stringify(classes));
         renderAllClasses();
-        
-        // Return editor to the default state
         showEditor('default');
     });
 
     deleteBtn.addEventListener('click', () => {
         if (!selectedClassId) return;
         classes = classes.filter(c => c.id !== selectedClassId);
-        
-        // Save the new state and redraw
         sessionStorage.setItem('scheduleClasses', JSON.stringify(classes));
         renderAllClasses();
-        
-        // Return editor to default state
         showEditor('default');
     });
 
     document.getElementById('exportBtn').addEventListener('click', () => {
         const scheduleNode = document.getElementById('schedule-grid');
-        // Temporarily deselect for a clean screenshot
         const selectedItem = scheduleNode.querySelector('.class-item.selected');
         if (selectedItem) {
             selectedItem.classList.remove('selected');
@@ -202,8 +197,6 @@ document.addEventListener('DOMContentLoaded', () => {
             link.download = 'my-class-schedule.png';
             link.href = canvas.toDataURL('image/png');
             link.click();
-            
-            // Add the selection back if it was there
             if (selectedItem) {
                 selectedItem.classList.add('selected');
             }
@@ -211,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- INITIALIZE APPLICATION ---
-    initializeGridSkeleton(); // 1. Build the static grid first.
-    renderAllClasses();       // 2. Render any saved classes on top of it.
-    showEditor('default');    // 3. Set the editor to its initial state.
+    initializeGridSkeleton();
+    renderAllClasses();
+    showEditor('default');
 });
