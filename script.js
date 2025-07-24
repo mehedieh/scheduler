@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- CONFIG & STATE ---
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
     const timeSlots = [
-        '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', 
+        '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
         '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'
     ];
     let classes = JSON.parse(sessionStorage.getItem('scheduleClasses')) || [];
@@ -14,38 +14,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const defaultMessage = document.getElementById('default-message');
     const deleteBtn = document.getElementById('deleteBtn');
 
-    // ==================================================================
-    // BUG FIX: STABLE RENDERING LOGIC
-    // ==================================================================
-
-    /**
-     * Builds the static grid skeleton using the stable `appendChild` method.
-     * This runs ONLY ONCE and will never destroy the page layout.
-     */
+    // --- RENDER FUNCTIONS --- (These are stable and correct)
     function initializeGridSkeleton() {
-        grid.innerHTML = ''; // Clear the grid container once.
+        grid.innerHTML = '';
         grid.style.gridTemplateColumns = `0.8fr repeat(${timeSlots.length}, 1.5fr)`;
-
-        // Create headers using the safe method
         const timeHeader = document.createElement('div');
         timeHeader.className = 'grid-cell header';
         timeHeader.textContent = 'Time';
         grid.appendChild(timeHeader);
-
         timeSlots.forEach(time => {
             const headerCell = document.createElement('div');
             headerCell.className = 'grid-cell header';
             headerCell.textContent = time;
             grid.appendChild(headerCell);
         });
-
-        // Create day rows and their cells using the safe method
         days.forEach((day, dayIndex) => {
             const dayHeader = document.createElement('div');
             dayHeader.className = 'grid-cell header';
             dayHeader.textContent = day;
             grid.appendChild(dayHeader);
-
             timeSlots.forEach((time, timeIndex) => {
                 const cell = document.createElement('div');
                 cell.className = 'grid-cell';
@@ -56,39 +43,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    /**
-     * Renders all class blocks on top of the existing grid.
-     * This function is safe and only modifies the class items themselves.
-     */
     function renderAllClasses() {
         document.querySelectorAll('.class-item').forEach(item => item.remove());
-
         classes.forEach(cls => {
             const classItem = document.createElement('div');
             classItem.className = 'class-item';
             classItem.dataset.id = cls.id;
-            
             if (cls.id === selectedClassId) {
                 classItem.classList.add('selected');
             }
-            
             classItem.style.backgroundColor = cls.color;
-            
             const duration = Math.max(1, cls.duration);
             classItem.style.gridColumn = `${cls.time + 2} / span ${duration}`;
             classItem.style.gridRow = `${cls.day + 2}`;
-            
             classItem.innerHTML = `
                 <div class="code">${cls.code}</div>
                 <div class="title">${cls.title}</div>
                 <div class="teacher">${cls.teacher || ''}</div> 
             `;
-            
             grid.appendChild(classItem);
         });
     }
 
-    // --- EDITOR & FORM LOGIC --- (No changes needed here)
+    // --- EDITOR & FORM LOGIC --- (This is stable and correct)
     function showEditor(state, data) {
         if (state === 'new' || state === 'edit') {
             defaultMessage.classList.add('hidden');
@@ -144,6 +121,10 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAllClasses();
     });
 
+
+    // ==================================================================
+    // THE FINAL FIX IS HERE
+    // ==================================================================
     editorForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const id = parseInt(editorForm['class-id'].value);
@@ -156,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const classData = {
-            id: id || Date.now(),
+            id: id || Date.now(), // Create a new ID if it's a new class
             code: editorForm['course-code'].value,
             title: editorForm['course-title'].value,
             teacher: editorForm['teacher-name'].value,
@@ -166,6 +147,9 @@ document.addEventListener('DOMContentLoaded', () => {
             color: editorForm['class-color'].value
         };
 
+        // **THE FIX - PART 1:** Keep the current class selected.
+        selectedClassId = classData.id;
+
         if (id) {
             classes = classes.map(c => c.id === id ? classData : c);
         } else {
@@ -173,8 +157,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         sessionStorage.setItem('scheduleClasses', JSON.stringify(classes));
+        
+        // Update the visual grid. Because `selectedClassId` is set, the class
+        // you just saved will be highlighted.
         renderAllClasses();
-        showEditor('default');
+        
+        // **THE FIX - PART 2:** We NO LONGER call `showEditor('default')`.
+        // The form will remain on screen, showing the data you just saved,
+        // until you click somewhere else.
     });
 
     deleteBtn.addEventListener('click', () => {
@@ -182,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
         classes = classes.filter(c => c.id !== selectedClassId);
         sessionStorage.setItem('scheduleClasses', JSON.stringify(classes));
         renderAllClasses();
-        showEditor('default');
+        showEditor('default'); // Deleting should reset the editor.
     });
 
     document.getElementById('exportBtn').addEventListener('click', () => {
@@ -191,7 +181,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedItem) {
             selectedItem.classList.remove('selected');
         }
-
         html2canvas(scheduleNode, { backgroundColor: '#ffffff' }).then(canvas => {
             const link = document.createElement('a');
             link.download = 'my-class-schedule.png';
