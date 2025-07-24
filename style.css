@@ -216,3 +216,35 @@ body {
     margin-right: 8px;
     fill: currentColor; /* The SVG will inherit the link's color */
 }
+
+/* (Keep all your existing CSS and add these new rules at the end) */
+
+/* ... all your previous styles up to here ... */
+
+/* =================================
+   RESPONSIVE DESIGN FOR MOBILE
+   ================================= */
+@media (max-width: 800px) {
+    .app-container {
+        /* Stack the sidebar on top of the main content */
+        flex-direction: column;
+        height: auto; /* Allow content to determine height */
+    }
+
+    .sidebar {
+        width: 100%; /* Make sidebar full width */
+        height: auto; /* Let content define its height */
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .main-content {
+        /* Allow the main content to be scrolled independently if needed */
+        overflow-y: auto;
+    }
+
+    .schedule-grid {
+        /* Reduce margin on smaller screens */
+        margin: 1rem;
+    }
+}
