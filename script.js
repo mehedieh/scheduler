@@ -1,13 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- CONFIG & STATE ---
-    
-    // CHANGED: Time slots updated to 12-hour AM/PM format
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
     const timeSlots = [
         '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', 
         '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'
     ];
-    
     let classes = JSON.parse(sessionStorage.getItem('scheduleClasses')) || [];
     let selectedClassId = null;
 
@@ -17,62 +14,84 @@ document.addEventListener('DOMContentLoaded', () => {
     const defaultMessage = document.getElementById('default-message');
     const deleteBtn = document.getElementById('deleteBtn');
 
-    // --- RENDER FUNCTIONS ---
+    // ==================================================================
+    // BUG FIX: REWRITTEN RENDERING LOGIC
+    // ==================================================================
 
-    // BUG FIX: This function now ONLY runs once to build the static grid.
-    // It no longer destroys the grid on every save.
-    function initializeGrid() {
-        grid.innerHTML = '';
+    /**
+     *  Builds the static grid skeleton.
+     *  This function runs ONLY ONCE when the page loads.
+     *  It creates the time/day headers and the empty, clickable cells.
+     */
+    function initializeGridSkeleton() {
+        grid.innerHTML = ''; // Clear only once at the very beginning
         grid.style.gridTemplateColumns = `0.8fr repeat(${timeSlots.length}, 1.5fr)`;
         
+        // Add headers
         grid.innerHTML += `<div class="grid-cell header">Time</div>`;
         timeSlots.forEach(time => grid.innerHTML += `<div class="grid-cell header">${time}</div>`);
 
+        // Add day rows and their cells
         days.forEach((day, dayIndex) => {
             grid.innerHTML += `<div class="grid-cell header">${day}</div>`;
             timeSlots.forEach((time, timeIndex) => {
-                grid.innerHTML += `<div class="grid-cell" data-day="${dayIndex}" data-time="${timeIndex}"></div>`;
+                const cell = document.createElement('div');
+                cell.className = 'grid-cell';
+                cell.dataset.day = dayIndex;
+                cell.dataset.time = timeIndex;
+                grid.appendChild(cell);
             });
         });
     }
 
-    // BUG FIX: This is now the ONLY function that draws class items.
-    // It intelligently removes old items before drawing the updated ones.
-    function renderClasses() {
-        // First, remove all existing class items from the grid
+    /**
+     *  Renders all class blocks on top of the existing grid.
+     *  This is the ONLY function that should draw classes. It first removes
+     *  all old class blocks and then redraws the current list from scratch
+     *  without ever harming the grid skeleton.
+     */
+    function renderAllClasses() {
+        // First, remove ONLY the old class items, not the grid cells
         document.querySelectorAll('.class-item').forEach(item => item.remove());
 
-        // Then, draw the fresh list of classes
+        // Now, add each class from our data array to the grid
         classes.forEach(cls => {
             const classItem = document.createElement('div');
             classItem.className = 'class-item';
             classItem.dataset.id = cls.id;
+            
+            // Highlight the selected class
             if (cls.id === selectedClassId) {
                 classItem.classList.add('selected');
             }
+            
             classItem.style.backgroundColor = cls.color;
+            
+            // Position the item on the CSS Grid
             const duration = Math.max(1, cls.duration);
             classItem.style.gridColumn = `${cls.time + 2} / span ${duration}`;
             classItem.style.gridRow = `${cls.day + 2}`;
+            
+            // Add the content inside the class block
             classItem.innerHTML = `
                 <div class="code">${cls.code}</div>
                 <div class="title">${cls.title}</div>
                 <div class="teacher">${cls.teacher || ''}</div> 
             `;
+            
+            // Place the new class item directly onto the grid
             grid.appendChild(classItem);
         });
     }
 
-    // --- EDITOR & FORM LOGIC ---
+    // --- EDITOR & FORM LOGIC --- (This section is mostly the same and correct)
     function showEditor(state, data) {
         if (state === 'new' || state === 'edit') {
             defaultMessage.classList.add('hidden');
             editorForm.classList.remove('hidden');
 
-            // Populate select dropdowns only if they are empty
             if (editorForm['day-select'].options.length === 0) {
                 days.forEach((d, i) => editorForm['day-select'].add(new Option(d, i)));
-                // Use the new 12-hour time slots for the dropdowns
                 timeSlots.forEach((t, i) => editorForm['start-time-select'].add(new Option(t, i)));
                 timeSlots.forEach((t, i) => editorForm['end-time-select'].add(new Option(t, i)));
             }
@@ -113,13 +132,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const classData = classes.find(c => c.id === selectedClassId);
             showEditor('edit', classData);
         } else if (cellTarget) {
-            selectedClassId = null;
+            selectedClassId = null; // Deselect any previously selected class
             const day = cellTarget.dataset.day;
             const time = cellTarget.dataset.time;
             showEditor('new', { day, time: parseInt(time) });
         }
-        // Always call renderClasses to update the 'selected' highlight
-        renderClasses();
+        // Always re-render to update the 'selected' highlight correctly
+        renderAllClasses();
     });
 
     editorForm.addEventListener('submit', (e) => {
@@ -150,42 +169,49 @@ document.addEventListener('DOMContentLoaded', () => {
             classes.push(classData);
         }
         
-        saveAndRender();
+        // Save data and redraw the classes on the grid
+        sessionStorage.setItem('scheduleClasses', JSON.stringify(classes));
+        renderAllClasses();
+        
+        // Return editor to the default state
         showEditor('default');
     });
 
     deleteBtn.addEventListener('click', () => {
         if (!selectedClassId) return;
         classes = classes.filter(c => c.id !== selectedClassId);
-        selectedClassId = null;
-        saveAndRender();
+        
+        // Save the new state and redraw
+        sessionStorage.setItem('scheduleClasses', JSON.stringify(classes));
+        renderAllClasses();
+        
+        // Return editor to default state
         showEditor('default');
     });
 
     document.getElementById('exportBtn').addEventListener('click', () => {
-        // (This function remains the same and is correct)
         const scheduleNode = document.getElementById('schedule-grid');
-        const selected = scheduleNode.querySelector('.selected');
-        if (selected) selected.classList.remove('selected');
+        // Temporarily deselect for a clean screenshot
+        const selectedItem = scheduleNode.querySelector('.class-item.selected');
+        if (selectedItem) {
+            selectedItem.classList.remove('selected');
+        }
 
-        html2canvas(scheduleNode, { backgroundColor: '#f8f9fa' }).then(canvas => {
+        html2canvas(scheduleNode, { backgroundColor: '#ffffff' }).then(canvas => {
             const link = document.createElement('a');
             link.download = 'my-class-schedule.png';
             link.href = canvas.toDataURL('image/png');
             link.click();
-            if (selected) selected.classList.add('selected');
+            
+            // Add the selection back if it was there
+            if (selectedItem) {
+                selectedItem.classList.add('selected');
+            }
         });
     });
 
-    // --- HELPER FUNCTIONS ---
-    function saveAndRender() {
-        sessionStorage.setItem('scheduleClasses', JSON.stringify(classes));
-        // BUG FIX: Now we ONLY call renderClasses(). The main grid is never destroyed.
-        renderClasses();
-    }
-
-    // --- INITIALIZE ---
-    initializeGrid(); // Build the grid skeleton once.
-    renderClasses();  // Render any classes from sessionStorage on top of it.
-    showEditor('default'); // Show the default message in the editor.
+    // --- INITIALIZE APPLICATION ---
+    initializeGridSkeleton(); // 1. Build the static grid first.
+    renderAllClasses();       // 2. Render any saved classes on top of it.
+    showEditor('default');    // 3. Set the editor to its initial state.
 });
